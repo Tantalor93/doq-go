@@ -19,7 +19,7 @@ type Client struct {
 }
 
 type Options struct {
-	InsecureSkipVerify bool
+	tlsConfig *tls.Config
 }
 
 func NewClient(addr string, options Options) (*Client, error) {
@@ -27,10 +27,14 @@ func NewClient(addr string, options Options) (*Client, error) {
 
 	client.addr = addr
 
-	client.tlsconfig = &tls.Config{
-		InsecureSkipVerify: options.InsecureSkipVerify,
-		NextProtos:         []string{"doq"},
+	if options.tlsConfig == nil {
+		client.tlsconfig = &tls.Config{}
+	} else {
+		client.tlsconfig = options.tlsConfig.Clone()
 	}
+
+	// override protocol negotiation to DoQ, all the other stuff (like certificates, cert pools, insecure skip) is up to the user of library
+	client.tlsconfig.NextProtos = []string{"doq"}
 
 	if err := client.dial(); err != nil {
 		return nil, err
@@ -60,16 +64,16 @@ func (c *Client) dial() error {
 
 // Send sends DNS request using DNS over QUIC
 func (c *Client) Send(ctx context.Context, msg *dns.Msg) (*dns.Msg, error) {
-	pack, err := msg.Pack()
-	if err != nil {
-		return nil, err
-	}
-
-	// connection is not healthy, try to dial a new one
 	if err := c.conn.Context().Err(); err != nil {
+		// connection is not healthy, try to dial a new one
 		if err := c.dial(); err != nil {
 			return nil, err
 		}
+	}
+
+	pack, err := msg.Pack()
+	if err != nil {
+		return nil, err
 	}
 
 	streamSync, err := c.conn.OpenStreamSync(ctx)
