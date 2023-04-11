@@ -58,8 +58,8 @@ func (d *doqServer) start() {
 			if err != nil {
 				panic(err)
 			}
-			stream.Write(pack)
-			stream.Close()
+			_, _ = stream.Write(pack)
+			_ = stream.Close()
 		}
 	}()
 }
@@ -95,8 +95,14 @@ func generateTLSConfig() *tls.Config {
 	}
 
 	certs, err := os.ReadFile("test.crt")
+	if err != nil {
+		panic(err)
+	}
 
 	pool, err := x509.SystemCertPool()
+	if err != nil {
+		panic(err)
+	}
 	pool.AppendCertsFromPEM(certs)
 
 	return &tls.Config{
