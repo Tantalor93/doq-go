@@ -19,7 +19,7 @@ type Client struct {
 }
 
 type Options struct {
-	tlsConfig *tls.Config
+	TlsConfig *tls.Config
 }
 
 func NewClient(addr string, options Options) (*Client, error) {
@@ -27,10 +27,10 @@ func NewClient(addr string, options Options) (*Client, error) {
 
 	client.addr = addr
 
-	if options.tlsConfig == nil {
+	if options.TlsConfig == nil {
 		client.tlsconfig = &tls.Config{}
 	} else {
-		client.tlsconfig = options.tlsConfig.Clone()
+		client.tlsconfig = options.TlsConfig.Clone()
 	}
 
 	// override protocol negotiation to DoQ, all the other stuff (like certificates, cert pools, insecure skip) is up to the user of library
