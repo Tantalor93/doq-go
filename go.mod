@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/miekg/dns v1.1.54
-	github.com/quic-go/quic-go v0.34.0
+	github.com/quic-go/quic-go v0.35.1
 	github.com/stretchr/testify v1.8.4
 )
 
