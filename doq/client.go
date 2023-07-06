@@ -3,6 +3,7 @@ package doq
 import (
 	"context"
 	"crypto/tls"
+	"encoding/binary"
 	"io"
 	"sync"
 
@@ -75,13 +76,16 @@ func (c *Client) Send(ctx context.Context, msg *dns.Msg) (*dns.Msg, error) {
 	if err != nil {
 		return nil, err
 	}
+	packWithPrefix := make([]byte, 2+len(pack))
+	binary.BigEndian.PutUint16(packWithPrefix, uint16(len(pack)))
+	copy(packWithPrefix[2:], pack)
 
 	streamSync, err := c.conn.OpenStreamSync(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = streamSync.Write(pack)
+	_, err = streamSync.Write(packWithPrefix)
 	// close the stream to indicate we are done sending or the server might wait till we close the stream or timeout is hit
 	_ = streamSync.Close()
 	if err != nil {
@@ -94,7 +98,7 @@ func (c *Client) Send(ctx context.Context, msg *dns.Msg) (*dns.Msg, error) {
 	}
 
 	resp := dns.Msg{}
-	if err := resp.Unpack(buf); err != nil {
+	if err := resp.Unpack(buf[2:]); err != nil {
 		return nil, err
 	}
 	return &resp, nil

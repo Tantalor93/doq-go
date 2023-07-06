@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/binary"
 	"net"
 	"os"
 	"sync/atomic"
@@ -58,7 +59,10 @@ func (d *doqServer) start() {
 			if err != nil {
 				panic(err)
 			}
-			_, _ = stream.Write(pack)
+			packWithPrefix := make([]byte, 2+len(pack))
+			binary.BigEndian.PutUint16(packWithPrefix, uint16(len(pack)))
+			copy(packWithPrefix[2:], pack)
+			_, _ = stream.Write(packWithPrefix)
 			_ = stream.Close()
 		}
 	}()
