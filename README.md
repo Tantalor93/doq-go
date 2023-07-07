@@ -1,5 +1,8 @@
 # doq-go
-DoQ client library written in Golang, it is built on top [quic-go](https://github.com/quic-go/quic-go) and [dns](https://github.com/miekg/dns)
+[![Tantalor93](https://circleci.com/gh/Tantalor93/doq-go/tree/main.svg?style=svg)](https://circleci.com/gh/Tantalor93/doq-go?branch=main)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+DoQ client library written in Golang built on top [quic-go](https://github.com/quic-go/quic-go) and [dns](https://github.com/miekg/dns)
 libraries.
 
 ## Usage in your project
