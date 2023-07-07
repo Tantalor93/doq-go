@@ -19,19 +19,21 @@ type Client struct {
 	conn      quic.Connection
 }
 
+// Options encapsulates configuration options for doq.Client.
 type Options struct {
-	TlsConfig *tls.Config
+	TLSConfig *tls.Config
 }
 
+// NewClient creates a new doq.Client used for sending DoQ queries.
 func NewClient(addr string, options Options) (*Client, error) {
 	client := Client{}
 
 	client.addr = addr
 
-	if options.TlsConfig == nil {
-		client.tlsconfig = &tls.Config{}
+	if options.TLSConfig == nil {
+		client.tlsconfig = &tls.Config{MinVersion: tls.VersionTLS12}
 	} else {
-		client.tlsconfig = options.TlsConfig.Clone()
+		client.tlsconfig = options.TLSConfig.Clone()
 	}
 
 	// override protocol negotiation to DoQ, all the other stuff (like certificates, cert pools, insecure skip) is up to the user of library
@@ -63,7 +65,7 @@ func (c *Client) dial() error {
 	return nil
 }
 
-// Send sends DNS request using DNS over QUIC
+// Send sends DNS request using DNS over QUIC.
 func (c *Client) Send(ctx context.Context, msg *dns.Msg) (*dns.Msg, error) {
 	if err := c.conn.Context().Err(); err != nil {
 		// connection is not healthy, try to dial a new one
@@ -92,13 +94,22 @@ func (c *Client) Send(ctx context.Context, msg *dns.Msg) (*dns.Msg, error) {
 		return nil, err
 	}
 
-	buf, err := io.ReadAll(streamSync)
+	// read 2-octet length field to know how long the DNS message is
+	sizeBuf := make([]byte, 2)
+	_, err = io.ReadFull(streamSync, sizeBuf)
+	if err != nil {
+		return nil, err
+	}
+
+	size := binary.BigEndian.Uint16(sizeBuf)
+	buf := make([]byte, size)
+	_, err = io.ReadFull(streamSync, buf)
 	if err != nil {
 		return nil, err
 	}
 
 	resp := dns.Msg{}
-	if err := resp.Unpack(buf[2:]); err != nil {
+	if err := resp.Unpack(buf); err != nil {
 		return nil, err
 	}
 	return &resp, nil

@@ -113,5 +113,6 @@ func generateTLSConfig() *tls.Config {
 		Certificates: []tls.Certificate{cert},
 		NextProtos:   []string{"doq"},
 		RootCAs:      pool,
+		MinVersion:   tls.VersionTLS12,
 	}
 }

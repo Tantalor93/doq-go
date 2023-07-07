@@ -1,0 +1,37 @@
+run:
+  timeout: 5m
+linters:
+  disable-all: true
+  enable:
+  - gosimple
+  - govet
+  - ineffassign
+  - staticcheck
+  - typecheck
+  - unused
+  - gofmt
+  - revive
+  - gci
+  - gofumpt
+  - whitespace
+  - godot
+  - unparam
+  - gocritic
+  - unconvert
+  - gosec
+
+issues:
+  include:
+  - EXC0012 # disable excluding of issues about comments from revive
+
+linters-settings:
+  godot:
+    # list of regexps for excluding particular comment lines from check
+    exclude:
+    - '^ @.*' # swaggo comments like // @title
+    - '^ (\d+)(\.|\)).*' # enumeration comments like // 1. or // 1)
+  gosec:
+    global:
+      audit: true
+    excludes:
+    - G104
