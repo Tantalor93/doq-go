@@ -18,7 +18,7 @@ import (
 
 type doqServer struct {
 	addr     string
-	listener quic.Listener
+	listener *quic.Listener
 	closed   atomic.Bool
 }
 
@@ -110,6 +110,7 @@ func generateTLSConfig() *tls.Config {
 	pool.AppendCertsFromPEM(certs)
 
 	return &tls.Config{
+		ServerName:   "localhost",
 		Certificates: []tls.Certificate{cert},
 		NextProtos:   []string{"doq"},
 		RootCAs:      pool,

@@ -12,6 +12,7 @@ import (
 )
 
 // Client encapsulates and provides logic for querying DNS servers over QUIC.
+// The client should be thread-safe. The client reuses single QUIC connection to the server, while creating multiple parallel QUIC streams.
 type Client struct {
 	sync.Mutex
 	addr      string
@@ -39,14 +40,10 @@ func NewClient(addr string, options Options) (*Client, error) {
 	// override protocol negotiation to DoQ, all the other stuff (like certificates, cert pools, insecure skip) is up to the user of library
 	client.tlsconfig.NextProtos = []string{"doq"}
 
-	if err := client.dial(); err != nil {
-		return nil, err
-	}
-
 	return &client, nil
 }
 
-func (c *Client) dial() error {
+func (c *Client) dial(ctx context.Context) error {
 	c.Mutex.Lock()
 	defer c.Mutex.Unlock()
 	if c.conn != nil {
@@ -55,7 +52,7 @@ func (c *Client) dial() error {
 			return nil
 		}
 	}
-	conn, err := quic.DialAddrEarly(c.addr, c.tlsconfig, nil)
+	conn, err := quic.DialAddrEarly(ctx, c.addr, c.tlsconfig, nil)
 	if err != nil {
 		return err
 	}
@@ -67,9 +64,15 @@ func (c *Client) dial() error {
 
 // Send sends DNS request using DNS over QUIC.
 func (c *Client) Send(ctx context.Context, msg *dns.Msg) (*dns.Msg, error) {
+	if c.conn == nil {
+		// connection not yet created, create one
+		if err := c.dial(ctx); err != nil {
+			return nil, err
+		}
+	}
 	if err := c.conn.Context().Err(); err != nil {
 		// connection is not healthy, try to dial a new one
-		if err := c.dial(); err != nil {
+		if err := c.dial(ctx); err != nil {
 			return nil, err
 		}
 	}
