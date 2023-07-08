@@ -4,6 +4,7 @@
 [![lint](https://github.com/Tantalor93/doq-go/actions/workflows/lint.yml/badge.svg?branch=main)](https://github.com/Tantalor93/doq-go/actions/workflows/lint.yml)
 [![codecov](https://codecov.io/gh/Tantalor93/doq-go/branch/main/graph/badge.svg?token=77659YBXM8)](https://codecov.io/gh/Tantalor93/doq-go)
 [![Go Report Card](https://goreportcard.com/badge/github.com/tantalor93/doq-go)](https://goreportcard.com/report/github.com/tantalor93/doq-go)
+[![](https://godoc.org/github.com/Tantalor93/doq-go/doq?status.svg)](https://godoc.org/github.com/tantalor93/doq-go/doq)
 
 DNS over QUIC (=DoQ, as defined in [RFC9250](https://datatracker.ietf.org/doc/rfc9250/)) client library written in Golang and built on top [quic-go](https://github.com/quic-go/quic-go) and [dns](https://github.com/miekg/dns)
 libraries.

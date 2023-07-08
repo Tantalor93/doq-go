@@ -14,7 +14,7 @@ import (
 // Client encapsulates and provides logic for querying DNS servers over QUIC.
 // The client should be thread-safe. The client reuses single QUIC connection to the server, while creating multiple parallel QUIC streams.
 type Client struct {
-	sync.Mutex
+	lock      sync.Mutex
 	addr      string
 	tlsconfig *tls.Config
 	conn      quic.Connection
@@ -44,8 +44,8 @@ func NewClient(addr string, options Options) (*Client, error) {
 }
 
 func (c *Client) dial(ctx context.Context) error {
-	c.Mutex.Lock()
-	defer c.Mutex.Unlock()
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	if c.conn != nil {
 		if err := c.conn.Context().Err(); err == nil {
 			// somebody else created the connection in the meantime, no need to do anything
