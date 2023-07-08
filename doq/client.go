@@ -47,17 +47,34 @@ func (c *Client) dial(ctx context.Context) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	if c.conn != nil {
+		c.conn.ConnectionState()
 		if err := c.conn.Context().Err(); err == nil {
 			// somebody else created the connection in the meantime, no need to do anything
 			return nil
 		}
 	}
-	conn, err := quic.DialAddrEarly(ctx, c.addr, c.tlsconfig, nil)
-	if err != nil {
-		return err
-	}
+	done := make(chan interface{})
 
-	c.conn = conn
+	go func() {
+		conn, err := quic.DialAddrEarly(ctx, c.addr, c.tlsconfig, nil)
+		if err != nil {
+			done <- err
+			return
+		}
+		done <- conn
+	}()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case res := <-done:
+		switch r := res.(type) {
+		case error:
+			return r
+		case quic.Connection:
+			c.conn = r
+		}
+	}
 
 	return nil
 }
