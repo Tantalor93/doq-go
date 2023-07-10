@@ -9,6 +9,7 @@ import (
 	"os"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/miekg/dns"
 	"github.com/quic-go/quic-go"
@@ -38,10 +39,15 @@ func (d *doqServer) start() {
 				}
 				return
 			}
+
 			stream, err := conn.AcceptStream(context.Background())
 			if err != nil {
 				panic(err)
 			}
+
+			// to reliably test read timeout
+			time.Sleep(time.Second)
+
 			resp := dns.Msg{
 				MsgHdr:   dns.MsgHdr{Rcode: dns.RcodeSuccess},
 				Question: []dns.Question{{Name: "example.org.", Qtype: dns.TypeA}},
@@ -79,7 +85,7 @@ func Test(t *testing.T) {
 	server.start()
 	defer server.stop()
 
-	client, err := NewClient(server.addr, Options{generateTLSConfig()})
+	client, err := NewClient(server.addr, Options{TLSConfig: generateTLSConfig()})
 	require.NoError(t, err)
 
 	msg := dns.Msg{}
@@ -90,6 +96,38 @@ func Test(t *testing.T) {
 	assert.Equal(t, dns.RcodeSuccess, resp.Rcode)
 	assert.Len(t, resp.Answer, 1)
 	assert.Equal(t, net.ParseIP("127.0.0.1").To4(), resp.Answer[0].(*dns.A).A)
+}
+
+func TestWriteTimeout(t *testing.T) {
+	server := doqServer{}
+	server.start()
+	defer server.stop()
+
+	client, err := NewClient(server.addr, Options{TLSConfig: generateTLSConfig(), WriteTimeout: 1 * time.Nanosecond})
+	require.NoError(t, err)
+
+	msg := dns.Msg{}
+	msg.SetQuestion("example.org.", dns.TypeA)
+	resp, err := client.Send(context.Background(), &msg)
+
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.Nil(t, resp)
+}
+
+func TestReadTimeout(t *testing.T) {
+	server := doqServer{}
+	server.start()
+	defer server.stop()
+
+	client, err := NewClient(server.addr, Options{TLSConfig: generateTLSConfig(), ReadTimeout: 1 * time.Nanosecond})
+	require.NoError(t, err)
+
+	msg := dns.Msg{}
+	msg.SetQuestion("example.org.", dns.TypeA)
+	resp, err := client.Send(context.Background(), &msg)
+
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.Nil(t, resp)
 }
 
 func generateTLSConfig() *tls.Config {
