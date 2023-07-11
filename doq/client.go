@@ -15,20 +15,22 @@ import (
 // Client encapsulates and provides logic for querying DNS servers over QUIC.
 // The client should be thread-safe. The client reuses single QUIC connection to the server, while creating multiple parallel QUIC streams.
 type Client struct {
-	lock         sync.Mutex
-	addr         string
-	tlsconfig    *tls.Config
-	conn         quic.Connection
-	writeTimeout time.Duration
-	readTimeout  time.Duration
+	lock           sync.Mutex
+	addr           string
+	tlsconfig      *tls.Config
+	conn           quic.Connection
+	writeTimeout   time.Duration
+	readTimeout    time.Duration
+	connectTimeout time.Duration
 }
 
 // Options encapsulates configuration options for doq.Client.
-// By default, WriteTimeout and ReadTimeout is zero, meaning there is no timeout.
+// By default, WriteTimeout, ReadTimeout and ConnectTimeout is zero, meaning there is no timeout.
 type Options struct {
-	TLSConfig    *tls.Config
-	WriteTimeout time.Duration
-	ReadTimeout  time.Duration
+	TLSConfig      *tls.Config
+	WriteTimeout   time.Duration
+	ReadTimeout    time.Duration
+	ConnectTimeout time.Duration
 }
 
 // NewClient creates a new doq.Client used for sending DoQ queries.
@@ -47,6 +49,7 @@ func NewClient(addr string, options Options) (*Client, error) {
 	client.tlsconfig.NextProtos = []string{"doq"}
 	client.readTimeout = options.ReadTimeout
 	client.writeTimeout = options.WriteTimeout
+	client.connectTimeout = options.ConnectTimeout
 
 	return &client, nil
 }
@@ -61,10 +64,18 @@ func (c *Client) dial(ctx context.Context) error {
 			return nil
 		}
 	}
+
+	connectCtx := ctx
+	if c.connectTimeout != 0 {
+		var cancel context.CancelFunc
+		connectCtx, cancel = context.WithTimeout(connectCtx, c.connectTimeout)
+		defer cancel()
+	}
+
 	done := make(chan interface{})
 
 	go func() {
-		conn, err := quic.DialAddrEarly(ctx, c.addr, c.tlsconfig, nil)
+		conn, err := quic.DialAddrEarly(connectCtx, c.addr, c.tlsconfig, nil)
 		if err != nil {
 			done <- err
 			return
@@ -73,8 +84,8 @@ func (c *Client) dial(ctx context.Context) error {
 	}()
 
 	select {
-	case <-ctx.Done():
-		return ctx.Err()
+	case <-connectCtx.Done():
+		return connectCtx.Err()
 	case res := <-done:
 		switch r := res.(type) {
 		case error:
