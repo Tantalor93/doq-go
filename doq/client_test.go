@@ -85,8 +85,7 @@ func Test(t *testing.T) {
 	server.start()
 	defer server.stop()
 
-	client, err := NewClient(server.addr, Options{TLSConfig: generateTLSConfig()})
-	require.NoError(t, err)
+	client := NewClient(server.addr, Options{TLSConfig: generateTLSConfig()})
 
 	msg := dns.Msg{}
 	msg.SetQuestion("example.org.", dns.TypeA)
@@ -103,8 +102,7 @@ func TestWriteTimeout(t *testing.T) {
 	server.start()
 	defer server.stop()
 
-	client, err := NewClient(server.addr, Options{TLSConfig: generateTLSConfig(), WriteTimeout: 1 * time.Nanosecond})
-	require.NoError(t, err)
+	client := NewClient(server.addr, Options{TLSConfig: generateTLSConfig(), WriteTimeout: 1 * time.Nanosecond})
 
 	msg := dns.Msg{}
 	msg.SetQuestion("example.org.", dns.TypeA)
@@ -119,8 +117,7 @@ func TestReadTimeout(t *testing.T) {
 	server.start()
 	defer server.stop()
 
-	client, err := NewClient(server.addr, Options{TLSConfig: generateTLSConfig(), ReadTimeout: 1 * time.Nanosecond})
-	require.NoError(t, err)
+	client := NewClient(server.addr, Options{TLSConfig: generateTLSConfig(), ReadTimeout: 1 * time.Nanosecond})
 
 	msg := dns.Msg{}
 	msg.SetQuestion("example.org.", dns.TypeA)

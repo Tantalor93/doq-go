@@ -34,7 +34,7 @@ type Options struct {
 }
 
 // NewClient creates a new doq.Client used for sending DoQ queries.
-func NewClient(addr string, options Options) (*Client, error) {
+func NewClient(addr string, options Options) *Client {
 	client := Client{}
 
 	client.addr = addr
@@ -51,7 +51,7 @@ func NewClient(addr string, options Options) (*Client, error) {
 	client.writeTimeout = options.WriteTimeout
 	client.connectTimeout = options.ConnectTimeout
 
-	return &client, nil
+	return &client
 }
 
 func (c *Client) dial(ctx context.Context) error {
