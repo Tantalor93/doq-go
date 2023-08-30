@@ -1,10 +1,10 @@
 module github.com/tantalor93/doq-go
 
-go 1.20
+go 1.21
 
 require (
 	github.com/miekg/dns v1.1.55
-	github.com/quic-go/quic-go v0.37.0
+	github.com/quic-go/quic-go v0.38.1
 	github.com/stretchr/testify v1.8.4
 )
 
@@ -16,7 +16,7 @@ require (
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/onsi/ginkgo/v2 v2.9.5 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/quic-go/qtls-go1-20 v0.3.0 // indirect
+	github.com/quic-go/qtls-go1-20 v0.3.3 // indirect
 	golang.org/x/crypto v0.4.0 // indirect
 	golang.org/x/exp v0.0.0-20221205204356-47842c84f3db // indirect
 	golang.org/x/mod v0.10.0 // indirect
