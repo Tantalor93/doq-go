@@ -19,40 +19,27 @@ type Client struct {
 	conn     quic.Connection
 
 	addr           string
-	tlsconfig      *tls.Config
+	tlsConfig      *tls.Config
 	writeTimeout   time.Duration
 	readTimeout    time.Duration
 	connectTimeout time.Duration
 }
 
-// Options encapsulates configuration options for doq.Client.
-// By default, WriteTimeout, ReadTimeout and ConnectTimeout is zero, meaning there is no timeout.
-type Options struct {
-	TLSConfig      *tls.Config
-	WriteTimeout   time.Duration
-	ReadTimeout    time.Duration
-	ConnectTimeout time.Duration
-}
-
 // NewClient creates a new doq.Client used for sending DoQ queries.
-func NewClient(addr string, options Options) *Client {
-	client := Client{}
-
-	client.addr = addr
-
-	if options.TLSConfig == nil {
-		client.tlsconfig = &tls.Config{MinVersion: tls.VersionTLS12}
-	} else {
-		client.tlsconfig = options.TLSConfig.Clone()
+func NewClient(addr string, opts ...Option) *Client {
+	client := &Client{
+		addr:      addr,
+		tlsConfig: &tls.Config{MinVersion: tls.VersionTLS12},
+	}
+	for _, opt := range opts {
+		opt.apply(client)
 	}
 
-	// override protocol negotiation to DoQ, all the other stuff (like certificates, cert pools, insecure skip) is up to the user of library
-	client.tlsconfig.NextProtos = []string{"doq"}
-	client.readTimeout = options.ReadTimeout
-	client.writeTimeout = options.WriteTimeout
-	client.connectTimeout = options.ConnectTimeout
+	// override protocol negotiation to DoQ, all the other stuff (like certificates, cert pools, insecure skip)
+	// is up to the user of library
+	client.tlsConfig.NextProtos = []string{"doq"}
 
-	return &client
+	return client
 }
 
 func (c *Client) dial(ctx context.Context) error {
@@ -76,7 +63,7 @@ func (c *Client) dial(ctx context.Context) error {
 	done := make(chan interface{})
 
 	go func() {
-		conn, err := quic.DialAddrEarly(connectCtx, c.addr, c.tlsconfig, nil)
+		conn, err := quic.DialAddrEarly(connectCtx, c.addr, c.tlsConfig, nil)
 		if err != nil {
 			done <- err
 			return

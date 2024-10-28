@@ -1,4 +1,4 @@
-package doq
+package doq_test
 
 import (
 	"context"
@@ -15,6 +15,7 @@ import (
 	"github.com/quic-go/quic-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tantalor93/doq-go/doq"
 )
 
 type doqServer struct {
@@ -85,7 +86,7 @@ func Test(t *testing.T) {
 	server.start()
 	defer server.stop()
 
-	client := NewClient(server.addr, Options{TLSConfig: generateTLSConfig()})
+	client := doq.NewClient(server.addr, doq.WithTLSConfig(generateTLSConfig()))
 
 	msg := dns.Msg{}
 	msg.SetQuestion("example.org.", dns.TypeA)
@@ -102,7 +103,7 @@ func TestWriteTimeout(t *testing.T) {
 	server.start()
 	defer server.stop()
 
-	client := NewClient(server.addr, Options{TLSConfig: generateTLSConfig(), WriteTimeout: 1 * time.Nanosecond})
+	client := doq.NewClient(server.addr, doq.WithTLSConfig(generateTLSConfig()), doq.WithWriteTimeout(time.Nanosecond))
 
 	msg := dns.Msg{}
 	msg.SetQuestion("example.org.", dns.TypeA)
@@ -117,7 +118,7 @@ func TestReadTimeout(t *testing.T) {
 	server.start()
 	defer server.stop()
 
-	client := NewClient(server.addr, Options{TLSConfig: generateTLSConfig(), ReadTimeout: 1 * time.Nanosecond})
+	client := doq.NewClient(server.addr, doq.WithTLSConfig(generateTLSConfig()), doq.WithReadTimeout(time.Nanosecond))
 
 	msg := dns.Msg{}
 	msg.SetQuestion("example.org.", dns.TypeA)
