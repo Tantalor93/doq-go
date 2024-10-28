@@ -19,18 +19,18 @@ go get github.com/tantalor93/doq-go
 
 ## Examples
 ```
-// create new DoQ Client
-client, err := doq.NewClient("dns.adguard-dns.com:853", doq.Options{})
-if err != nil {
-    panic(err)
-}
+// create client with default settings resolving via AdGuard DoQ Server
+client := doq.NewClient("dns.adguard-dns.com:853")
 
-// create new query
+// prepare payload
 q := dns.Msg{}
 q.SetQuestion("www.google.com.", dns.TypeA)
 
-// send query
-var resp *dns.Msg
-resp, err = client.Send(context.Background(), &q)
-fmt.Println(resp ,err)
+// send DNS query
+r, err := client.Send(context.Background(), &q)
+if err != nil {
+    panic(err)
+}
+// do something with response
+fmt.Println(dns.RcodeToString[r.Rcode])
 ```
