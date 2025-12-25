@@ -147,6 +147,7 @@ func writeMsg(ctx context.Context, stream quic.Stream, msg *dns.Msg) error {
 		return err
 	}
 	packWithPrefix := make([]byte, 2+len(pack))
+	// nolint:gosec
 	binary.BigEndian.PutUint16(packWithPrefix, uint16(len(pack)))
 	copy(packWithPrefix[2:], pack)
 
