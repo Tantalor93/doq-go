@@ -16,7 +16,7 @@ import (
 // The client should be thread-safe. The client reuses single QUIC connection to the server, while creating multiple parallel QUIC streams.
 type Client struct {
 	connLock sync.RWMutex
-	conn     quic.Connection
+	conn     *quic.Conn
 
 	addr           string
 	tlsConfig      *tls.Config
@@ -78,7 +78,7 @@ func (c *Client) dial(ctx context.Context) error {
 		switch r := res.(type) {
 		case error:
 			return r
-		case quic.Connection:
+		case *quic.Conn:
 			c.conn = r
 		}
 	}
@@ -141,7 +141,7 @@ func (c *Client) dialIfNeeded(ctx context.Context) error {
 	return nil
 }
 
-func writeMsg(ctx context.Context, stream quic.Stream, msg *dns.Msg) error {
+func writeMsg(ctx context.Context, stream *quic.Stream, msg *dns.Msg) error {
 	pack, err := msg.Pack()
 	if err != nil {
 		return err
@@ -166,7 +166,7 @@ func writeMsg(ctx context.Context, stream quic.Stream, msg *dns.Msg) error {
 	}
 }
 
-func readMsg(ctx context.Context, stream quic.Stream) (*dns.Msg, error) {
+func readMsg(ctx context.Context, stream *quic.Stream) (*dns.Msg, error) {
 	done := make(chan interface{})
 	go func() {
 		// read 2-octet length field to know how long the DNS message is
