@@ -67,6 +67,7 @@ func (d *doqServer) start() {
 				panic(err)
 			}
 			packWithPrefix := make([]byte, 2+len(pack))
+			// nolint:gosec
 			binary.BigEndian.PutUint16(packWithPrefix, uint16(len(pack)))
 			copy(packWithPrefix[2:], pack)
 			_, _ = stream.Write(packWithPrefix)
