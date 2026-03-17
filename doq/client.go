@@ -60,7 +60,7 @@ func (c *Client) dial(ctx context.Context) error {
 		defer cancel()
 	}
 
-	done := make(chan interface{})
+	done := make(chan interface{}, 1)
 
 	go func() {
 		conn, err := quic.DialAddrEarly(connectCtx, c.addr, c.tlsConfig, nil)
@@ -151,7 +151,7 @@ func writeMsg(ctx context.Context, stream *quic.Stream, msg *dns.Msg) error {
 	binary.BigEndian.PutUint16(packWithPrefix, uint16(len(pack)))
 	copy(packWithPrefix[2:], pack)
 
-	done := make(chan error)
+	done := make(chan error, 1)
 	go func() {
 		_, err = stream.Write(packWithPrefix)
 		// close the stream to indicate we are done sending or the server might wait till we close the stream or timeout is hit
@@ -160,6 +160,7 @@ func writeMsg(ctx context.Context, stream *quic.Stream, msg *dns.Msg) error {
 	}()
 	select {
 	case <-ctx.Done():
+		stream.CancelWrite(0)
 		return ctx.Err()
 	case err := <-done:
 		return err
@@ -167,7 +168,7 @@ func writeMsg(ctx context.Context, stream *quic.Stream, msg *dns.Msg) error {
 }
 
 func readMsg(ctx context.Context, stream *quic.Stream) (*dns.Msg, error) {
-	done := make(chan interface{})
+	done := make(chan interface{}, 1)
 	go func() {
 		// read 2-octet length field to know how long the DNS message is
 		sizeBuf := make([]byte, 2)
@@ -194,6 +195,7 @@ func readMsg(ctx context.Context, stream *quic.Stream) (*dns.Msg, error) {
 	}()
 	select {
 	case <-ctx.Done():
+		stream.CancelRead(0)
 		return nil, ctx.Err()
 	case res := <-done:
 		switch r := res.(type) {
