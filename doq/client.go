@@ -149,31 +149,36 @@ func writeMsg(ctx context.Context, stream *quic.Stream, msg *dns.Msg) error {
 	binary.BigEndian.PutUint16(packWithPrefix, uint16(len(pack)))
 	copy(packWithPrefix[2:], pack)
 
-	done := make(chan error, 1)
+	var writeErr error
+	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		_, err = stream.Write(packWithPrefix)
+		_, writeErr = stream.Write(packWithPrefix)
 		// close the stream to indicate we are done sending or the server might wait till we close the stream or timeout is hit
 		_ = stream.Close()
-		done <- err
 	}()
 	select {
 	case <-ctx.Done():
+		stream.CancelWrite(0)
 		return ctx.Err()
-	case err := <-done:
-		return err
+	case <-done:
+		return writeErr
 	}
 }
 
 func readMsg(ctx context.Context, stream *quic.Stream) (*dns.Msg, error) {
-	done := make(chan interface{}, 1)
+	var (
+		resp    *dns.Msg
+		readErr error
+	)
+	done := make(chan struct{})
 	go func() {
 		defer close(done)
 		// read 2-octet length field to know how long the DNS message is
 		sizeBuf := make([]byte, 2)
 		_, err := io.ReadFull(stream, sizeBuf)
 		if err != nil {
-			done <- err
+			readErr = err
 			return
 		}
 
@@ -181,28 +186,22 @@ func readMsg(ctx context.Context, stream *quic.Stream) (*dns.Msg, error) {
 		buf := make([]byte, size)
 		_, err = io.ReadFull(stream, buf)
 		if err != nil {
-			done <- err
+			readErr = err
 			return
 		}
 
-		resp := dns.Msg{}
-		if err := resp.Unpack(buf); err != nil {
-			done <- err
+		msg := dns.Msg{}
+		if err := msg.Unpack(buf); err != nil {
+			readErr = err
 			return
 		}
-		done <- &resp
+		resp = &msg
 	}()
 	select {
 	case <-ctx.Done():
+		stream.CancelRead(0)
 		return nil, ctx.Err()
-	case res := <-done:
-		switch r := res.(type) {
-		case error:
-			return nil, r
-		case *dns.Msg:
-			return r, nil
-		default:
-			panic("unknown response")
-		}
+	case <-done:
+		return resp, readErr
 	}
 }
