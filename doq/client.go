@@ -12,16 +12,6 @@ import (
 	"github.com/quic-go/quic-go"
 )
 
-// DoQ error codes as defined in RFC 9250 Section 8.4.
-const (
-	doqNoError          quic.StreamErrorCode = 0x0
-	doqInternalError    quic.StreamErrorCode = 0x1
-	doqProtocolError    quic.StreamErrorCode = 0x2
-	doqRequestCancelled quic.StreamErrorCode = 0x3
-	doqExcessiveLoad    quic.StreamErrorCode = 0x4
-	doqUnspecifiedError quic.StreamErrorCode = 0x5
-)
-
 // Client encapsulates and provides logic for querying DNS servers over QUIC.
 // The client should be thread-safe. The client reuses single QUIC connection to the server, while creating multiple parallel QUIC streams.
 type Client struct {
@@ -170,7 +160,7 @@ func writeMsg(ctx context.Context, stream *quic.Stream, msg *dns.Msg) error {
 	}()
 	select {
 	case <-ctx.Done():
-		stream.CancelWrite(doqRequestCancelled)
+		stream.CancelWrite(0)
 		return ctx.Err()
 	case err := <-done:
 		return err
@@ -205,7 +195,7 @@ func readMsg(ctx context.Context, stream *quic.Stream) (*dns.Msg, error) {
 	}()
 	select {
 	case <-ctx.Done():
-		stream.CancelRead(doqRequestCancelled)
+		stream.CancelRead(0)
 		return nil, ctx.Err()
 	case res := <-done:
 		switch r := res.(type) {
