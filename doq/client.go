@@ -103,9 +103,6 @@ func (c *Client) Send(ctx context.Context, msg *dns.Msg) (*dns.Msg, error) {
 		writeCtx, cancel = context.WithTimeout(writeCtx, c.writeTimeout)
 		defer cancel()
 	}
-	if err := writeMsg(writeCtx, stream, msg); err != nil {
-		return nil, err
-	}
 
 	readCtx := ctx
 	if c.readTimeout != 0 {
@@ -113,7 +110,51 @@ func (c *Client) Send(ctx context.Context, msg *dns.Msg) (*dns.Msg, error) {
 		readCtx, cancel = context.WithTimeout(readCtx, c.readTimeout)
 		defer cancel()
 	}
-	return readMsg(readCtx, stream)
+
+	// Single shared watchdog: transitions from the write phase to the read phase
+	// via writeDone, and exits entirely when done is closed (i.e. Send returns).
+	writeDone := make(chan struct{})
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		select {
+		case <-writeCtx.Done():
+			stream.CancelWrite(0)
+			stream.CancelRead(0)
+			return
+		case <-writeDone:
+		case <-done:
+			return
+		}
+		select {
+		case <-readCtx.Done():
+			stream.CancelRead(0)
+		case <-done:
+		}
+	}()
+
+	if err := writeCtx.Err(); err != nil {
+		return nil, err
+	}
+	if err := writeMsg(stream, msg); err != nil {
+		if writeCtx.Err() != nil {
+			return nil, writeCtx.Err()
+		}
+		return nil, err
+	}
+	close(writeDone) // advance watchdog from write phase to read phase
+
+	if err := readCtx.Err(); err != nil {
+		return nil, err
+	}
+	resp, err := readMsg(stream)
+	if err != nil {
+		if readCtx.Err() != nil {
+			return nil, readCtx.Err()
+		}
+		return nil, err
+	}
+	return resp, nil
 }
 
 func (c *Client) dialIfNeeded(ctx context.Context) error {
@@ -141,11 +182,7 @@ func (c *Client) dialIfNeeded(ctx context.Context) error {
 	return nil
 }
 
-func writeMsg(ctx context.Context, stream *quic.Stream, msg *dns.Msg) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-
+func writeMsg(stream *quic.Stream, msg *dns.Msg) error {
 	pack, err := msg.Pack()
 	if err != nil {
 		return err
@@ -155,21 +192,8 @@ func writeMsg(ctx context.Context, stream *quic.Stream, msg *dns.Msg) error {
 	binary.BigEndian.PutUint16(packWithPrefix, uint16(len(pack)))
 	copy(packWithPrefix[2:], pack)
 
-	done := make(chan struct{})
-	go func() {
-		select {
-		case <-ctx.Done():
-			stream.CancelWrite(0)
-		case <-done:
-		}
-	}()
-
 	_, err = stream.Write(packWithPrefix)
-	close(done) // stop the watchdog before touching the stream again
 	if err != nil {
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
 		return err
 	}
 	// close the stream to indicate we are done sending or the server might wait till we close the stream or timeout is hit
@@ -177,28 +201,11 @@ func writeMsg(ctx context.Context, stream *quic.Stream, msg *dns.Msg) error {
 	return nil
 }
 
-func readMsg(ctx context.Context, stream *quic.Stream) (*dns.Msg, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-
-	done := make(chan struct{})
-	defer close(done)
-	go func() {
-		select {
-		case <-ctx.Done():
-			stream.CancelRead(0)
-		case <-done:
-		}
-	}()
-
+func readMsg(stream *quic.Stream) (*dns.Msg, error) {
 	// read 2-octet length field to know how long the DNS message is
 	sizeBuf := make([]byte, 2)
 	_, err := io.ReadFull(stream, sizeBuf)
 	if err != nil {
-		if ctx.Err() != nil {
-			return nil, ctx.Err()
-		}
 		return nil, err
 	}
 
@@ -206,9 +213,6 @@ func readMsg(ctx context.Context, stream *quic.Stream) (*dns.Msg, error) {
 	buf := make([]byte, size)
 	_, err = io.ReadFull(stream, buf)
 	if err != nil {
-		if ctx.Err() != nil {
-			return nil, ctx.Err()
-		}
 		return nil, err
 	}
 
