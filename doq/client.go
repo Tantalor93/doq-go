@@ -111,26 +111,19 @@ func (c *Client) Send(ctx context.Context, msg *dns.Msg) (*dns.Msg, error) {
 		defer cancel()
 	}
 
-	// Single shared watchdog: transitions from the write phase to the read phase
-	// via writeDone, and exits entirely when done is closed (i.e. Send returns).
-	writeDone := make(chan struct{})
+	// Single watchdog: cancels both stream directions when either the write or
+	// read context expires. Exits without cancelling when Send returns normally.
 	done := make(chan struct{})
 	defer close(done)
 	go func() {
 		select {
 		case <-writeCtx.Done():
-			stream.CancelWrite(0)
-			stream.CancelRead(0)
-			return
-		case <-writeDone:
-		case <-done:
-			return
-		}
-		select {
 		case <-readCtx.Done():
-			stream.CancelRead(0)
 		case <-done:
+			return
 		}
+		stream.CancelWrite(0)
+		stream.CancelRead(0)
 	}()
 
 	if err := writeCtx.Err(); err != nil {
@@ -142,7 +135,6 @@ func (c *Client) Send(ctx context.Context, msg *dns.Msg) (*dns.Msg, error) {
 		}
 		return nil, err
 	}
-	close(writeDone) // advance watchdog from write phase to read phase
 
 	if err := readCtx.Err(); err != nil {
 		return nil, err
