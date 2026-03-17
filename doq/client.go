@@ -60,28 +60,25 @@ func (c *Client) dial(ctx context.Context) error {
 		defer cancel()
 	}
 
-	done := make(chan interface{}, 1)
+	var (
+		conn    *quic.Conn
+		connErr error
+	)
+	done := make(chan struct{})
 
 	go func() {
 		defer close(done)
-		conn, err := quic.DialAddrEarly(connectCtx, c.addr, c.tlsConfig, nil)
-		if err != nil {
-			done <- err
-			return
-		}
-		done <- conn
+		conn, connErr = quic.DialAddrEarly(connectCtx, c.addr, c.tlsConfig, nil)
 	}()
 
 	select {
 	case <-connectCtx.Done():
 		return connectCtx.Err()
-	case res := <-done:
-		switch r := res.(type) {
-		case error:
-			return r
-		case *quic.Conn:
-			c.conn = r
+	case <-done:
+		if connErr != nil {
+			return connErr
 		}
+		c.conn = conn
 	}
 
 	return nil
