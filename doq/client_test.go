@@ -62,6 +62,24 @@ func TestReadTimeout(t *testing.T) {
 	require.Nil(t, resp)
 }
 
+func TestContextCancellation(t *testing.T) {
+	server := doqServer{}
+	server.start()
+	defer server.stop()
+
+	client := doq.NewClient(server.addr, doq.WithTLSConfig(generateTLSConfig()))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	msg := dns.Msg{}
+	msg.SetQuestion("example.org.", dns.TypeA)
+	resp, err := client.Send(ctx, &msg)
+
+	require.ErrorIs(t, err, context.Canceled)
+	require.Nil(t, resp)
+}
+
 func generateTLSConfig() *tls.Config {
 	cert, err := tls.LoadX509KeyPair("test.crt", "test.key")
 	if err != nil {
