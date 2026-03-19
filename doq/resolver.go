@@ -65,7 +65,7 @@ func (c *resolverConn) Write(p []byte) (int, error) {
 	}
 	if c.response != nil {
 		c.mu.Unlock()
-		return 0, errors.New("doq resolver connection can only handle a single request")
+		return 0, errors.New("multiple Write calls not supported on single resolver connection")
 	}
 	ctx, cancel := c.requestContextLocked()
 	c.mu.Unlock()
@@ -119,11 +119,11 @@ func (c *resolverConn) Close() error {
 }
 
 func (c *resolverConn) LocalAddr() net.Addr {
-	return resolverAddr("doq-local")
+	return resolverAddr(resolverLocalAddr)
 }
 
 func (c *resolverConn) RemoteAddr() net.Addr {
-	return resolverAddr("doq-remote")
+	return resolverAddr(resolverRemoteAddr)
 }
 
 func (c *resolverConn) SetDeadline(t time.Time) error {
@@ -174,6 +174,11 @@ func earliestNonZero(times ...time.Time) time.Time {
 }
 
 type resolverAddr string
+
+const (
+	resolverLocalAddr  = "doq-local"
+	resolverRemoteAddr = "doq-remote"
+)
 
 func (a resolverAddr) Network() string {
 	return "doq"
