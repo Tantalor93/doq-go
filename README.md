@@ -34,3 +34,20 @@ if err != nil {
 // do something with response
 fmt.Println(dns.RcodeToString[r.Rcode])
 ```
+
+## Usage as `net.DefaultResolver`
+```
+resolver := doq.NewResolver(
+    "dns.adguard-dns.com:853",
+    doq.WithTLSConfig(&tls.Config{ServerName: "dns.adguard-dns.com"}),
+)
+
+net.DefaultResolver = resolver
+
+addrs, err := net.LookupHost("www.google.com")
+if err != nil {
+    panic(err)
+}
+
+fmt.Println(addrs)
+```
